@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flappy Bird Game</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-image: url('genalpha.gif');
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+    }
+
+    canvas {
+	    background-image: url('genalpha.gif');
+      background-repeat: no-repeat;
+      background-size: cover;
+      border: 2px solid #000;
+    }
+
+    #gameOver {
+      display: none;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      background-color: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 20px;
+      border-radius: 10px;
+    }
+
+    .btn {
+      background-color: #fff;
+      border: 1px solid #000;
+      padding: 10px 20px;
+      margin: 5px;
+      cursor: pointer;
+      font-size: 1.2rem;
+      transition: background-color 0.3s ease;
+    }
+
+    .btn:hover {
+      background-color: #ddd;
+    }
+
+    #musicButton {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      padding: 10px 20px;
+      background-color: #fff;
+      border: 1px solid #000;
+      cursor: pointer;
+      font-size: 1.2rem;
+      transition: background-color 0.3s ease;
+    }
+
+    #musicButton:hover {
+      background-color: #ddd;
+    }
+  </style>
+</head>
+<body>
+
+  <canvas id="gameCanvas"></canvas>
+  <div id="gameOver">
+    <h2>Game Over</h2>
+    <button class="btn" onclick="restartGame()">Restart</button>
+    <button class="btn" onclick="goBack()">Kembali</button>
+  </div>
+
+  <audio id="backgroundMusic" loop>
+    <source src="gtw.mp3" type="audio/mp3">
+    Browser Anda tidak mendukung pemutaran audio.
+  </audio>
+
+  <!-- Tombol untuk memutar musik -->
+  <button id="musicButton" onclick="toggleMusic()">Putar Musik</button>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    // Variabel game
+    const birdWidth = 20;
+    const birdHeight = 20;
+    const pipeWidth = 50;
+    const pipeGap = 200; // Jarak antar pipa
+    const pipeSpeed = 2;
+    const gravity = 0.6;
+    const birdFlap = -10;
+    let birdY = canvas.height / 2 - birdHeight / 2;
+    let birdVelocity = 0;
+    let gameOver = false;
+    let pipes = [];
+    let score = 0;
+    let lastPipeX = 0;  // Menyimpan posisi x pipa terakhir
+
+    // Event listener untuk kontrol game
+    document.addEventListener('keydown', function(e) {
+      if (e.key === ' ' && !gameOver) { // Tombol spasi
+        birdVelocity = birdFlap;
+      }
+    });
+
+    // Event listener untuk klik layar
+    canvas.addEventListener('click', function() {
+      if (!gameOver) { // Tombol klik di layar
+        birdVelocity = birdFlap;
+      }
+    });
+
+    // Class untuk pipa
+    class Pipe {
+      constructor(x) {
+        this.x = x;
+        // Variasikan tinggi pipa agar lebih dinamis
+        this.height = Math.floor(Math.random() * (canvas.height - pipeGap));
+        this.top = this.height;
+        this.bottom = this.height + pipeGap;
+      }
+
+      update() {
+        this.x -= pipeSpeed;
+      }
+
+      draw() {
+        ctx.fillStyle = 'rgb(23,211,25)';
+        ctx.fillRect(this.x, 0, pipeWidth, this.top); // Pipa atas
+        ctx.fillRect(this.x, this.bottom, pipeWidth, canvas.height - this.bottom); // Pipa bawah
+      }
+    }
+
+    // Update posisi burung
+    function updateBird() {
+      birdVelocity += gravity;
+      birdY += birdVelocity;
+
+      // Cek tabrakan dengan atas/bawah layar
+      if (birdY + birdHeight >= canvas.height || birdY <= 0) {
+        gameOver = true;
+        showGameOver();
+      }
+    }
+
+    // Cek tabrakan dengan pipa
+    function checkCollision(pipe) {
+      if (birdY < pipe.top || birdY + birdHeight > pipe.bottom) {
+        if (50 + birdWidth > pipe.x && 50 < pipe.x + pipeWidth) {
+          gameOver = true;
+          showGameOver();
+          triggerVibration(); // Menambahkan getaran saat tabrakan
+        }
+      }
+    }
+
+    // Membuat pipa baru
+    function createPipes() {
+      const pipeDistance = 200; // Jarak antara pipa
+
+      if (pipes.length === 0 || pipes[pipes.length - 1].x < canvas.width - pipeDistance) {
+        const pipeX = canvas.width;
+        pipes.push(new Pipe(pipeX));
+        lastPipeX = pipeX; // Update posisi x pipa terakhir
+      }
+    }
+
+    // Mengupdate dan menggambar pipa
+    function updatePipes() {
+      pipes.forEach(pipe => {
+        pipe.update();
+        pipe.draw();
+        checkCollision(pipe);
+      });
+
+      pipes = pipes.filter(pipe => pipe.x + pipeWidth > 0); // Hapus pipa yang sudah lewat
+    }
+
+    // Menampilkan Game Over
+    function showGameOver() {
+      document.getElementById('gameOver').style.display = 'block';
+    }
+
+    // Restart game
+    function restartGame() {
+      birdY = canvas.height / 2 - birdHeight / 2;
+      birdVelocity = 0;
+      pipes = [];
+      score = 0;
+      gameOver = false;
+      document.getElementById('gameOver').style.display = 'none';
+      loop();
+    }
+
+    // Arahkan ke halaman index
+    function goBack() {
+      window.location.href = "index.html"; // Ganti dengan path yang sesuai
+    }
+
+    // Menggambar burung
+    function drawBird() {
+      ctx.fillStyle = '#f00';
+      ctx.fillRect(50, birdY, birdWidth, birdHeight);
+    }
+
+    // Menggambar skor
+    function drawScore() {
+      ctx.fillStyle = 'white';
+      ctx.font = '20px Arial';
+      ctx.fillText('Score: ' + score, 10, 30);
+    }
+
+    // Menambah getaran
+    function triggerVibration() {
+      if (navigator.vibrate) {
+        navigator.vibrate(200); // Getaran selama 200ms
+      }
+    }
+
+    // Loop utama game
+    function loop() {
+      if (!gameOver) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        updateBird();
+        createPipes();
+        updatePipes();
+        drawBird();
+        drawScore();
+
+        // Menambah skor jika burung melewati pipa
+        pipes.forEach(pipe => {
+          if (pipe.x + pipeWidth < 50 && !pipe.passed) {
+            score++;
+            pipe.passed = true;
+          }
+        });
+
+        requestAnimationFrame(loop);
+      }
+    }
+
+    loop(); // Jalankan game loop
+
+    // Fungsi untuk memutar atau berhenti musik
+    function toggleMusic() {
+      const music = document.getElementById('backgroundMusic');
+      if (music.paused) {
+        music.play(); // Memulai pemutaran musik
+        document.getElementById('musicButton').textContent = 'Hentikan Musik';
+      } else {
+        music.pause(); // Menghentikan pemutaran musik
+        document.getElementById('musicButton').textContent = 'Putar Musik';
+      }
+    }
+  </script>
+
+</body>
+</html>
